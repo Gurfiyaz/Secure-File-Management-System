@@ -3,121 +3,135 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <conio.h>       
+#include <windows.h>     
+#include <sys/types.h>
 #include <sys/stat.h>
-#include <conio.h>  // For _getch() on Windows
-
 
 #define MAX 100
 
-// ANSI color codes
 #define RED     "\x1b[31m"
 #define GREEN   "\x1b[32m"
-#define CYAN    "\x1b[36m"
 #define YELLOW  "\x1b[33m"
-#define MAGENTA "\x1b[35m"
 #define BLUE    "\x1b[34m"
+#define MAGENTA "\x1b[35m"
+#define CYAN    "\x1b[36m"
 #define RESET   "\x1b[0m"
 
-// Function Prototypes
 void displayUserMenu();
 int isValidPassword(const char *password);
 void getPasswordInput(char *password);
 void viewMetadata(const char *filename);
 void modifyFile();
-void uploadBinaryFile();
+void enableANSIColors();
+int registerUser();
+int loginUser();
 
 int main() {
-    int choice;
-    char filename[MAX];
+    enableANSIColors();
 
+    int authenticated = 0;
     while (1) {
-        displayUserMenu();
-        printf(YELLOW "\nEnter your choice: " RESET);
-        scanf("%d", &choice);
-        getchar(); // consume newline
+        while (!authenticated) {
+            printf(YELLOW "\n========== Secure File Management ==========\n" RESET);
+            printf(YELLOW "1. Register\n2. Login\n3. Exit\nChoose option: " RESET);
+            int option;
+            scanf("%d", &option);
+            getchar();
 
-        switch (choice) {
-            case 1: {
-                printf(CYAN "\nEnter file name to create: " RESET);
-                fgets(filename, MAX, stdin);
-                filename[strcspn(filename, "\n")] = 0;
-
-                FILE *f = fopen(filename, "w");
-                if (f) {
-                    printf(MAGENTA "Enter content: " RESET);
-                    char content[MAX];
-                    fgets(content, MAX, stdin);
-                    fputs(content, f);
-                    fclose(f);
-                    printf(GREEN "\n✔ File saved successfully!\n" RESET);
-                } else {
-                    printf(RED "\n✘ Failed to open file for writing.\n" RESET);
+            if (option == 1) {
+                if (registerUser()) {
+                    printf(GREEN "\n✔ Registration successful! Please login.\n" RESET);
                 }
-                break;
-            }
-
-            case 2: {
-                printf(CYAN "\nEnter file name to read: " RESET);
-                fgets(filename, MAX, stdin);
-                filename[strcspn(filename, "\n")] = 0;
-
-                FILE *fr = fopen(filename, "r");
-                if (fr) {
-                    printf("\n" YELLOW "--- File Content ---\n" RESET);
-                    char ch;
-                    while ((ch = fgetc(fr)) != EOF) {
-                        putchar(ch);
-                    }
-                    fclose(fr);
-                    printf("\n" GREEN "--- End of File ---\n" RESET);
+            } else if (option == 2) {
+                if (loginUser()) {
+                    printf(GREEN "\n✔ Login successful!\n" RESET);
+                    authenticated = 1;
                 } else {
-                    printf(RED "\n✘ File not found.\n" RESET);
+                    printf(RED "\n✘ Login failed. Try again.\n" RESET);
                 }
-                break;
-            }
-
-            case 3: {
-                printf(CYAN "\nEnter file name to view metadata: " RESET);
-                fgets(filename, MAX, stdin);
-                filename[strcspn(filename, "\n")] = 0;
-                viewMetadata(filename);
-                break;
-            }
-
-            case 4:
-                printf(GREEN "\n✔ Logged out. Goodbye!\n" RESET);
+            } else if (option == 3) {
+                printf(GREEN "\n✔ Exiting program. Goodbye!\n" RESET);
                 exit(0);
-
-            case 5: {
-                printf(CYAN "\n--- Register New User ---\n" RESET);
-                char uname[MAX], pwd[MAX];
-                printf(YELLOW "Enter username: " RESET);
-                fgets(uname, MAX, stdin);
-                uname[strcspn(uname, "\n")] = 0;
-
-                while (1) {
-                    printf(YELLOW "Enter password (min 8 chars): " RESET);
-                    getPasswordInput(pwd);
-                    if (isValidPassword(pwd)) {
-                        printf(GREEN "\n✔ Password set successfully!\n" RESET);
-                        break;
-                    } else {
-                        printf(RED "\n✘ Password must include uppercase, lowercase, digit, and special character.\n" RESET);
-                    }
-                }
-                break;
+            } else {
+                printf(RED "\n✘ Invalid option. Try again.\n" RESET);
             }
+        }
 
-            case 6:
-                modifyFile();
-                break;
+        int choice;
+        char filename[MAX];
 
-            case 7:
-                uploadBinaryFile();
-                break;
+        while (authenticated) {
+            displayUserMenu();
+            printf(YELLOW "\nEnter your choice: " RESET);
+            scanf("%d", &choice);
+            getchar();
 
-            default:
-                printf(RED "\n✘ Invalid choice. Please try again.\n" RESET);
+            switch (choice) {
+                case 1: {
+                    printf(CYAN "\nEnter file name to create (with extension, e.g., 'file.txt'): " RESET);
+                    fgets(filename, MAX, stdin);
+                    filename[strcspn(filename, "\n")] = 0;
+
+                    if (strchr(filename, '.') == NULL) {
+                        strcat(filename, ".txt");
+                    }
+
+                    FILE *f = fopen(filename, "w");
+                    if (f) {
+                        printf(MAGENTA "Enter content: " RESET);
+                        char content[MAX];
+                        fgets(content, MAX, stdin);
+                        fputs(content, f);
+                        fclose(f);
+                        printf(GREEN "\n✔ File '%s' created successfully!\n" RESET, filename);
+                    } else {
+                        printf(RED "\n✘ Failed to open file for writing.\n" RESET);
+                    }
+                    break;
+                }
+
+                case 2: {
+                    printf(CYAN "\nEnter file name to read: " RESET);
+                    fgets(filename, MAX, stdin);
+                    filename[strcspn(filename, "\n")] = 0;
+
+                    FILE *fr = fopen(filename, "r");
+                    if (fr) {
+                        printf("\n" YELLOW "--- File Content ---\n" RESET);
+                        char ch;
+                        while ((ch = fgetc(fr)) != EOF) {
+                            putchar(ch);
+                        }
+                        fclose(fr);
+                        printf("\n" GREEN "--- End of File ---\n" RESET);
+                    } else {
+                        printf(RED "\n✘ File not found.\n" RESET);
+                    }
+                    break;
+                }
+
+                case 3: {
+                    printf(CYAN "\nEnter file name to view metadata: " RESET);
+                    fgets(filename, MAX, stdin);
+                    filename[strcspn(filename, "\n")] = 0;
+                    viewMetadata(filename);
+                    break;
+                }
+
+                case 4: {
+                    printf(GREEN "\n✔ Logged out. Returning to main menu...\n" RESET);
+                    authenticated = 0;
+                    break;
+                }
+
+                case 5:
+                    modifyFile();
+                    break;
+
+                default:
+                    printf(RED "\n✘ Invalid choice. Please try again.\n" RESET);
+            }
         }
     }
 
@@ -125,14 +139,12 @@ int main() {
 }
 
 void displayUserMenu() {
-    printf(CYAN "\n========== " YELLOW "Secure File Management" CYAN " ==========\n" RESET);
+    printf(CYAN "\n========== " YELLOW "Secure File Management Menu" CYAN " ==========\n" RESET);
     printf(GREEN "1. " RESET "Write File\n");
     printf(GREEN "2. " RESET "Read File\n");
     printf(GREEN "3. " RESET "View Metadata\n");
     printf(GREEN "4. " RESET "Logout\n");
-    printf(GREEN "5. " RESET "Register New User\n");
-    printf(GREEN "6. " RESET "Modify File\n");
-    printf(GREEN "7. " RESET "Upload Photo/Document\n");
+    printf(GREEN "5. " RESET "Modify File\n");
     printf(CYAN "===========================================\n" RESET);
 }
 
@@ -149,26 +161,37 @@ int isValidPassword(const char *password) {
 }
 
 void getPasswordInput(char *password) {
-    char ch;
     int i = 0;
-    while ((ch = _getch()) != '\r') {  // Enter key
-        if ((ch == '\b' || ch == 127) && i > 0) {
-            i--;
-            printf("\b \b");
-        } else if (i < MAX - 1 && isprint(ch)) {
+    char ch;
+    while ((ch = _getch()) != '\r' && i < MAX - 1) {
+        if (ch == 8) {
+            if (i > 0) {
+                i--;
+                printf("\b \b");
+            }
+        } else if (isprint(ch)) {
             password[i++] = ch;
             printf("*");
         }
     }
     password[i] = '\0';
+    printf("\n");
 }
 
 void viewMetadata(const char *filename) {
-    struct stat info;
-    if (stat(filename, &info) == 0) {
+    struct _stat64 info;
+    if (_stat64(filename, &info) == 0) {
+        const char *ext = strrchr(filename, '.');
+        if (ext) {
+            ext++;
+        } else {
+            ext = "No extension";
+        }
+
         printf(YELLOW "\n--- File Metadata ---\n" RESET);
         printf(BLUE "Name: " RESET "%s\n", filename);
-        printf(BLUE "Size: " RESET "%ld bytes\n", info.st_size);
+        printf(BLUE "Type: " RESET "%s\n", ext);
+        printf(BLUE "Size: " RESET "%lld bytes\n", info.st_size);
         printf(BLUE "Last Modified: " RESET "%s", ctime(&info.st_mtime));
         printf(BLUE "Last Accessed: " RESET "%s", ctime(&info.st_atime));
     } else {
@@ -214,34 +237,63 @@ void modifyFile() {
     }
 }
 
-void uploadBinaryFile() {
-    char src[MAX], dest[MAX];
-    printf(CYAN "\nEnter path of image or document to upload: " RESET);
-    fgets(src, MAX, stdin);
-    src[strcspn(src, "\n")] = 0;
+void enableANSIColors() {
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) return;
 
-    printf(YELLOW "Enter destination path/filename: " RESET);
-    fgets(dest, MAX, stdin);
-    dest[strcspn(dest, "\n")] = 0;
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) return;
 
-    FILE *source = fopen(src, "rb");
-    FILE *target = fopen(dest, "wb");
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hOut, dwMode);
+}
 
-    if (!source || !target) {
-        printf(RED "\n✘ Error opening source or destination file.\n" RESET);
-        if (source) fclose(source);
-        if (target) fclose(target);
-        return;
+int registerUser() {
+    char uname[MAX], pwd[MAX];
+    printf(YELLOW "\n--- Register New User ---\n" RESET);
+    printf(YELLOW "Enter username: " RESET);
+    fgets(uname, MAX, stdin);
+    uname[strcspn(uname, "\n")] = 0;
+
+    while (1) {
+        printf(YELLOW "Enter password (min 8 chars): " RESET);
+        getPasswordInput(pwd);
+        if (isValidPassword(pwd)) {
+            FILE *f = fopen("users.txt", "a");
+            if (f) {
+                fprintf(f, "%s %s\n", uname, pwd);
+                fclose(f);
+                return 1;
+            } else {
+                printf(RED "\n✘ Error saving user.\n" RESET);
+                return 0;
+            }
+        } else {
+            printf(RED "\n✘ Password must include uppercase, lowercase, digit, and special character.\n" RESET);
+        }
+    }
+}
+
+int loginUser() {
+    char uname[MAX], pwd[MAX], fileU[MAX], fileP[MAX];
+    printf(YELLOW "\n--- Login ---\n" RESET);
+    printf(YELLOW "Enter username: " RESET);
+    fgets(uname, MAX, stdin);
+    uname[strcspn(uname, "\n")] = 0;
+
+    printf(YELLOW "Enter password: " RESET);
+    getPasswordInput(pwd);
+
+    FILE *f = fopen("users.txt", "r");
+    if (!f) return 0;
+
+    while (fscanf(f, "%s %s", fileU, fileP) != EOF) {
+        if (strcmp(fileU, uname) == 0 && strcmp(fileP, pwd) == 0) {
+            fclose(f);
+            return 1;
+        }
     }
 
-    char buffer[1024];
-    size_t bytes;
-    while ((bytes = fread(buffer, 1, sizeof(buffer), source)) > 0) {
-        fwrite(buffer, 1, bytes, target);
-    }
-
-    fclose(source);
-    fclose(target);
-
-    printf(GREEN "\n✔ Upload successful!\n" RESET);
+    fclose(f);
+    return 0;
 }
